@@ -1,6 +1,6 @@
 // Imports
 use crate::Color;
-use crate::style::PressureCurve;
+use crate::style::{PressureCurve, PressureDeadZone};
 use anyhow::Context;
 use num_derive::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
@@ -25,6 +25,9 @@ pub struct SmoothOptions {
     /// Pressure curve.
     #[serde(rename = "pressure_curve")]
     pub pressure_curve: PressureCurve,
+    /// Pressure Dead Zone
+    #[serde(rename = "pressure_dead_zone")]
+    pub pressure_dead_zone: PressureDeadZone,
     /// Line style.
     #[serde(rename = "line_style")]
     pub line_style: LineStyle,
@@ -46,6 +49,7 @@ impl Default for SmoothOptions {
             stroke_color: Some(Color::BLACK),
             fill_color: None,
             pressure_curve: PressureCurve::default(),
+            pressure_dead_zone: PressureDeadZone::default(),
             line_style,
             line_cap,
             piet_stroke_style: Self::compute_piet_stroke_style(stroke_width, line_style, line_cap),
@@ -126,6 +130,8 @@ impl<'de> Deserialize<'de> for SmoothOptions {
             pub fill_color: Option<Color>,
             #[serde(rename = "pressure_curve")]
             pub pressure_curve: PressureCurve,
+            #[serde(rename = "pressure_dead_zone")]
+            pub pressure_dead_zone: PressureDeadZone,
             #[serde(rename = "line_style")]
             pub line_style: LineStyle,
             #[serde(rename = "line_cap")]
@@ -139,6 +145,7 @@ impl<'de> Deserialize<'de> for SmoothOptions {
                     stroke_color: value.stroke_color,
                     fill_color: value.fill_color,
                     pressure_curve: value.pressure_curve,
+                    pressure_dead_zone: value.pressure_dead_zone,
                     line_style: value.line_style,
                     line_cap: value.line_cap,
                 }
@@ -158,6 +165,7 @@ impl<'de> Deserialize<'de> for SmoothOptions {
             stroke_color: precursor.stroke_color,
             fill_color: precursor.fill_color,
             pressure_curve: precursor.pressure_curve,
+            pressure_dead_zone: precursor.pressure_dead_zone,
             line_style: precursor.line_style,
             line_cap: precursor.line_cap,
             piet_stroke_style: Self::compute_piet_stroke_style(

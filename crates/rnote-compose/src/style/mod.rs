@@ -309,6 +309,66 @@ impl Composer<Style> for Shape {
     }
 }
 
+/// Dead zone restriction for the pressure curve.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename="pressure_dead_zone")]
+pub struct PressureDeadZone {
+    /// Start of the dead zone.
+    #[serde(rename="start")]
+    start: f64,
+    /// End of the dead zone.
+    #[serde(rename="end")]
+    end: f64,
+    /// Low of the dead zone.
+    #[serde(rename="low")]
+    low: f64,
+    /// High of the dead zone.
+    #[serde(rename="high")]
+    high: f64,
+}
+
+impl Default for PressureDeadZone {
+    fn default() -> Self {
+        Self { start: 0.0, end: 1.0, low: 0.0, high: 1.0 }
+    }
+}
+
+impl PressureDeadZone {
+    /// New pressure dead zone
+    pub fn new(start: f64, end: f64, low: f64, high: f64) -> Self {
+        assert!(0.0 <= start && start <= 1.0 && start <= end, "start");
+        assert!(0.0 <= end && end <= 1.0, "end");
+        assert!(0.0 <= low && low <= 1.0 && low <= high, "low");
+        assert!(0.0 <= high && high <= 1.0, "high");
+        Self {
+            start, end, high, low
+        }
+    }
+
+    /// Start of the pressure dead zone
+    pub fn start(&self) -> f64 { self.start }
+    /// End of the pressure dead zone
+    pub fn end(&self) -> f64 { self.end }
+    /// Low of the pressure dead zone
+    pub fn low(&self) -> f64 { self.low }
+    /// High of the pressure dead zone
+    pub fn high(&self) -> f64 { self.high }
+
+    /// Apply the dead zone to the pressure.
+    /// Returns None, if it's not within the bounds
+    fn apply(&self, pressure: f64) -> Option<f64> {
+        let Self { start, end, low, high } = self;
+        (!(pressure <= *start || pressure >= *end)).then(|| {
+            let normalized = (pressure - start) / (end - start);
+            if pressure <= *start {
+                0.0
+            } else {
+                low + normalized * (high - normalized)
+            }
+        })
+    }
+}
+
 /// The pressure curve used by some styles.
 #[derive(
     Debug,
@@ -348,6 +408,8 @@ impl PressureCurve {
     ///
     /// Expects pressure to be between range [0.0 - 1.0].
     pub fn apply(&self, width: f64, pressure: f64) -> f64 {
+        // TODO: It is most probably still drawing even if width is 0, fix that.
+        // TODO: Propagate the dead zones as if the stylus event didn't even happen.
         match self {
             Self::Const => width,
             Self::Linear => width * pressure,
@@ -356,6 +418,20 @@ impl PressureCurve {
             Self::Pow2 => width * pressure.powi(2),
             Self::Pow3 => width * pressure.powi(3),
         }
+    }
+
+    /// Apply the pressure curve w/ a dead zone.
+    pub fn apply_with_dead_zone(
+        &self,
+        width: f64,
+        pressure: f64,
+        dead_zone: PressureDeadZone
+    ) -> Option<f64> {
+        dead_zone
+            .apply(pressure)
+            .map(|pressure| {
+                self.apply(width, pressure)
+            })
     }
 }
 

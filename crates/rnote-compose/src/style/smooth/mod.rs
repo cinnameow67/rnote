@@ -270,11 +270,24 @@ impl Composer<SmoothOptions> for PenPath {
                         let (width_start, width_end) = (
                             options
                                 .pressure_curve
-                                .apply(options.stroke_width, prev.pressure),
+                                .apply_with_dead_zone(
+                                    options.stroke_width,
+                                    prev.pressure,
+                                    options.pressure_dead_zone
+                                ),
                             options
                                 .pressure_curve
-                                .apply(options.stroke_width, end.pressure),
+                                .apply_with_dead_zone(
+                                    options.stroke_width,
+                                    end.pressure,
+                                    options.pressure_dead_zone
+                                ),
                         );
+
+                        let (width_start, width_end) = match (width_start, width_end) {
+                            (Some(s), Some(e)) => (s, e),
+                            _ => { prev = *end; continue; }
+                        };
 
                         let bez_path = compose_lines_variable_width(
                             &[Line {
@@ -293,11 +306,24 @@ impl Composer<SmoothOptions> for PenPath {
                         let (width_start, width_end) = (
                             options
                                 .pressure_curve
-                                .apply(options.stroke_width, prev.pressure),
+                                .apply_with_dead_zone(
+                                    options.stroke_width,
+                                    prev.pressure,
+                                    options.pressure_dead_zone
+                                ),
                             options
                                 .pressure_curve
-                                .apply(options.stroke_width, end.pressure),
+                                .apply_with_dead_zone(
+                                    options.stroke_width,
+                                    end.pressure,
+                                    options.pressure_dead_zone
+                                ),
                         );
+
+                        let (width_start, width_end) = match (width_start, width_end) {
+                            (Some(s), Some(e)) => (s, e),
+                            _ => { prev = *end;  continue; }
+                        };
 
                         let quadbez = QuadraticBezier {
                             start: prev.pos,
@@ -319,11 +345,24 @@ impl Composer<SmoothOptions> for PenPath {
                         let (width_start, width_end) = (
                             options
                                 .pressure_curve
-                                .apply(options.stroke_width, prev.pressure),
+                                .apply_with_dead_zone(
+                                    options.stroke_width,
+                                    prev.pressure,
+                                    options.pressure_dead_zone
+                                ),
                             options
                                 .pressure_curve
-                                .apply(options.stroke_width, end.pressure),
+                                .apply_with_dead_zone(
+                                    options.stroke_width,
+                                    end.pressure,
+                                    options.pressure_dead_zone
+                                ),
                         );
+
+                        let (width_start, width_end) = match (width_start, width_end) {
+                            (Some(s), Some(e)) => (s, e),
+                            _ => { prev = *end; continue; }
+                        };
 
                         let cubbez = CubicBezier {
                             start: prev.pos,
@@ -358,11 +397,17 @@ impl Composer<SmoothOptions> for PenPath {
         if single_pos {
             let start_width = options
                 .pressure_curve
-                .apply(options.stroke_width, self.start.pressure);
-            cx.fill(
-                kurbo::Circle::new(self.start.pos.to_kurbo_point(), start_width * 0.5),
-                &Into::<piet::Color>::into(color),
-            );
+                .apply_with_dead_zone(
+                    options.stroke_width,
+                    self.start.pressure,
+                    options.pressure_dead_zone
+                );
+            if let Some(start_width) = start_width {
+                cx.fill(
+                    kurbo::Circle::new(self.start.pos.to_kurbo_point(), start_width * 0.5),
+                    &Into::<piet::Color>::into(color),
+                );
+            }
         }
 
         cx.restore().unwrap();

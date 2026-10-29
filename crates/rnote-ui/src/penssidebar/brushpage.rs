@@ -7,7 +7,7 @@ use gtk4::{
 };
 use num_traits::cast::ToPrimitive;
 use rnote_compose::builders::PenPathBuilderType;
-use rnote_compose::style::PressureCurve;
+use rnote_compose::style::{PressureCurve, PressureDeadZone};
 use rnote_compose::style::textured::{TexturedDotsDistribution, TexturedOptions};
 use rnote_engine::pens::pensconfig::BrushConfig;
 use rnote_engine::pens::pensconfig::brushconfig::{BrushStyle, SolidOptions};
@@ -40,6 +40,10 @@ mod imp {
         pub(crate) brush_buildertype_modeled: TemplateChild<adw::ActionRow>,
         #[template_child]
         pub(crate) solidstyle_pressure_curves_row: TemplateChild<adw::ComboRow>,
+        #[template_child]
+        pub(crate) solidstyle_pressure_dead_zone_start: TemplateChild<gtk4::SpinButton>,
+        #[template_child]
+        pub(crate) solidstyle_pressure_dead_zone_end: TemplateChild<gtk4::SpinButton>,
         #[template_child]
         pub(crate) texturedstyle_density_row: TemplateChild<adw::SpinRow>,
         #[template_child]
@@ -204,6 +208,28 @@ impl RnBrushPage {
             .solidstyle_pressure_curves_row
             .get()
             .set_selected(position);
+    }
+
+    pub(crate) fn solidstyle_pressure_dead_zone(&self) -> PressureDeadZone {
+        PressureDeadZone::new(
+            self.imp().solidstyle_pressure_dead_zone_start.get().value(),
+            self.imp().solidstyle_pressure_dead_zone_end.get().value(),
+            0.0, 1.0 // TODO fix the vertical dead zones
+        )
+    }
+
+    pub(crate) fn set_solidstyle_pressure_dead_zone(&self, pressure_dead_zone: PressureDeadZone) {
+        let start = pressure_dead_zone.start();
+        let end = pressure_dead_zone.end();
+
+        self.imp()
+            .solidstyle_pressure_dead_zone_start
+            .get()
+            .set_value(start);
+        self.imp()
+            .solidstyle_pressure_dead_zone_end
+            .get()
+            .set_value(end);
     }
 
     pub(crate) fn texturedstyle_dots_distribution(&self) -> TexturedDotsDistribution {
@@ -391,6 +417,30 @@ impl RnBrushPage {
                 }
             ));
 
+        // Pressure Dead Zone
+        let update_dead_zone = clone!(
+            #[weak(rename_to=brushpage)]
+            self,
+            #[weak]
+            appwindow,
+            move || {
+                appwindow
+                    .engine_config()
+                    .write()
+                    .pens_config
+                    .brush_config
+                    .solid_options
+                    .pressure_dead_zone = brushpage.solidstyle_pressure_dead_zone();
+            }
+        );
+
+        imp.solidstyle_pressure_dead_zone_start
+            .get()
+            .connect_value_notify(clone!(#[strong] update_dead_zone, move |_| { update_dead_zone(); }));
+        imp.solidstyle_pressure_dead_zone_end
+            .get()
+            .connect_value_notify(clone!(#[strong] update_dead_zone, move |_| { update_dead_zone(); }));
+
         // Textured style
         // Density
         imp.texturedstyle_density_row
@@ -445,6 +495,7 @@ impl RnBrushPage {
             .clone();
 
         self.set_solidstyle_pressure_curve(brush_config.solid_options.pressure_curve);
+        self.set_solidstyle_pressure_dead_zone(brush_config.solid_options.pressure_dead_zone);
         imp.texturedstyle_density_row
             .set_value(brush_config.textured_options.density);
         self.set_texturedstyle_distribution_variant(brush_config.textured_options.distribution);
